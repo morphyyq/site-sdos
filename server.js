@@ -4,32 +4,22 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import webpush from 'web-push';
+import { MongoClient } from 'mongodb';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 3000);
 const PUBLIC_DIR = path.join(__dirname, 'public');
-const DATA_DIR = path.join(__dirname, 'data');
-const SUBSCRIPTIONS_FILE = path.join(DATA_DIR, 'subscriptions.json');
-const ALERTS_FILE = path.join(DATA_DIR, 'alerts.json');
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '';
 const ADMIN_IDS = new Set((process.env.ADMIN_TELEGRAM_IDS || '').split(',').map(x => x.trim()).filter(Boolean));
 const PUBLIC_URL = (process.env.PUBLIC_URL || '').replace(/\/$/, '');
 const WEBHOOK_SECRET = process.env.TELEGRAM_WEBHOOK_SECRET || '';
+const MONGODB_URI = process.env.MONGODB_URI || '';
+const MONGODB_DB_NAME = process.env.MONGODB_DB_NAME || 'yalta_alerts';
 const TRIGGER_RE = /бпла|беспилот|дрон|дрона|воздушн|ракет/i;
+let db;
 
-fs.mkdirSync(DATA_DIR, { recursive: true });
-for (const [file, fallback] of [[SUBSCRIPTIONS_FILE, []], [ALERTS_FILE, []]]) {
-  if (!fs.existsSync(file)) fs.writeFileSync(file, JSON.stringify(fallback, null, 2));
-}
-
-function readJson(file, fallback) {
-  try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return fallback; }
-}
-function writeJson(file, value) {
-  fs.writeFileSync(file, JSON.stringify(value, null, 2));
-}
 function json(res, status, body) {
-  res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'access-control-allow-origin': '*' });
+  res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
   res.end(JSON.stringify(body));
 }
 function text(res, status, body, type = 'text/plain; charset=utf-8') {
@@ -42,6 +32,17 @@ async function readBody(req) {
   return raw;
 }
 function publicKey() { return process.env.VAPID_PUBLIC_KEY || ''; }
+function hashEndpoint(endpoint) { return crypto.createHash('sha256').update(endpoint).digest('hex'); }
+
+async function connectMongo() {
+  if (!MONGODB_URI) throw new Error('MONGODB_URI is not configured');
+  const client = new MongoClient(MONGODB_URI, { serverSelectionTimeoutMS: 10000 });
+  await client.connect();
+  db = client.db(MONGODB_DB_NAME);
+  await db.collection('subscriptions').createIndex({ endpointHash: 1 }, { unique: true });
+  await db.collection('alerts').createIndex({ city: 1, createdAt: -1 });
+  console.log(`MongoDB connected, database: ${MONGODB_DB_NAME}`);
+}
 
 if (process.env.VAPID_SUBJECT && process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
   webpush.setVapidDetails(process.env.VAPID_SUBJECT, process.env.VAPID_PUBLIC_KEY, process.env.VAPID_PRIVATE_KEY);
@@ -64,33 +65,48 @@ function cleanAlertText(textValue) {
   return textValue.replace(/^\/alert\s*/i, '').trim();
 }
 
-async function sendAlert(textValue, telegramChatId) {
+async function saveSubscription(subscription) {
+  const endpointHash = hashEndpoint(subscription.endpoint);
+  await db.collection('subscriptions').updateOne(
+    { endpointHash },
+    { $set: { endpointHash, subscription, city: 'Ялта', updatedAt: new Date() }, $setOnInsert: { createdAt: new Date() } },
+    { upsert: true }
+  );
+}
+
+async function saveAlert(textValue) {
   const alert = {
     id: crypto.randomUUID(),
     city: 'Ялта',
     text: textValue,
-    createdAt: new Date().toISOString(),
+    createdAt: new Date(),
     source: 'Telegram, ручная пересылка'
   };
-  const alerts = readJson(ALERTS_FILE, []);
-  alerts.unshift(alert);
-  writeJson(ALERTS_FILE, alerts.slice(0, 100));
+  await db.collection('alerts').insertOne(alert);
+  return alert;
+}
+
+async function sendAlert(textValue, telegramChatId) {
+  const alert = await saveAlert(textValue);
+  const subscriptions = await db.collection('subscriptions').find({ city: 'Ялта' }).toArray();
 
   if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
-    const subscriptions = readJson(SUBSCRIPTIONS_FILE, []);
-    const alive = [];
-    for (const subscription of subscriptions) {
+    for (const record of subscriptions) {
       try {
-        await webpush.sendNotification(subscription, JSON.stringify({
-          title: 'Предупреждение для Ялты', body: textValue, url: '/?alert=' + encodeURIComponent(alert.id)
+        await webpush.sendNotification(record.subscription, JSON.stringify({
+          title: 'Оповещение для Ялты',
+          body: textValue,
+          url: '/?alert=' + encodeURIComponent(alert.id)
         }));
-        alive.push(subscription);
       } catch (error) {
         const status = error?.statusCode;
-        if (status !== 404 && status !== 410) alive.push(subscription);
+        if (status === 404 || status === 410) {
+          await db.collection('subscriptions').deleteOne({ _id: record._id });
+        } else {
+          console.error('Push delivery failed:', error.message);
+        }
       }
     }
-    writeJson(SUBSCRIPTIONS_FILE, alive);
   }
 
   if (telegramChatId) {
@@ -114,7 +130,7 @@ async function handleTelegramUpdate(update) {
   if (!originalText) return;
   const isCommand = /^\/alert\b/i.test(originalText);
   if (!isCommand && !TRIGGER_RE.test(originalText)) {
-    await telegram('sendMessage', { chat_id: message.chat.id, text: 'Сообщение не отправлено: не найден ключевой признак предупреждения. Используйте /alert перед текстом или слова «БПЛА», «дрон», «беспилотник».' });
+    await telegram('sendMessage', { chat_id: message.chat.id, text: 'Сообщение не отправлено: не найден признак предупреждения. Используйте /alert перед текстом или слова «БПЛА», «дрон», «беспилотник».' });
     return;
   }
   const textValue = cleanAlertText(originalText);
@@ -141,7 +157,13 @@ function serveStatic(req, res) {
   fs.readFile(file, (error, data) => {
     if (error) return text(res, 404, 'Not found');
     const ext = path.extname(file);
-    const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.svg': 'image/svg+xml' };
+    const types = {
+      '.html': 'text/html; charset=utf-8',
+      '.js': 'text/javascript; charset=utf-8',
+      '.json': 'application/json',
+      '.webmanifest': 'application/manifest+json',
+      '.svg': 'image/svg+xml'
+    };
     text(res, 200, data, types[ext] || 'application/octet-stream');
   });
 }
@@ -149,15 +171,17 @@ function serveStatic(req, res) {
 const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-    if (req.method === 'GET' && url.pathname === '/api/config') return json(res, 200, { vapidPublicKey: publicKey(), city: 'Ялта' });
-    if (req.method === 'GET' && url.pathname === '/api/alerts') return json(res, 200, readJson(ALERTS_FILE, []).slice(0, 50));
+    if (req.method === 'GET' && url.pathname === '/api/config') {
+      return json(res, 200, { vapidPublicKey: publicKey(), city: 'Ялта' });
+    }
+    if (req.method === 'GET' && url.pathname === '/api/alerts') {
+      const alerts = await db.collection('alerts').find({ city: 'Ялта' }).sort({ createdAt: -1 }).limit(50).toArray();
+      return json(res, 200, alerts);
+    }
     if (req.method === 'POST' && url.pathname === '/api/subscribe') {
       const body = JSON.parse(await readBody(req));
-      if (!body?.endpoint) return json(res, 400, { error: 'Invalid subscription' });
-      const subscriptions = readJson(SUBSCRIPTIONS_FILE, []);
-      const exists = subscriptions.some(x => x.endpoint === body.endpoint);
-      if (!exists) subscriptions.push(body);
-      writeJson(SUBSCRIPTIONS_FILE, subscriptions);
+      if (!body?.endpoint || !body?.keys?.p256dh || !body?.keys?.auth) return json(res, 400, { error: 'Invalid subscription' });
+      await saveSubscription(body);
       return json(res, 201, { ok: true });
     }
     if (req.method === 'POST' && WEBHOOK_SECRET && url.pathname === `/telegram-webhook/${encodeURIComponent(WEBHOOK_SECRET)}`) {
@@ -173,7 +197,16 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, () => {
-  console.log(`Yalta alerts server listening on ${PORT}`);
-  setupWebhook();
-});
+async function start() {
+  try {
+    await connectMongo();
+    server.listen(PORT, () => {
+      console.log(`Yalta alerts server listening on ${PORT}`);
+      setupWebhook();
+    });
+  } catch (error) {
+    console.error('Startup failed:', error.message);
+    process.exit(1);
+  }
+}
+start();
