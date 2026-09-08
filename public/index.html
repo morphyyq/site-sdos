@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1220">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <title>Оповещения Ялты</title>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #0b1220; color: #f5f7fb; }
+    body { max-width: 700px; margin: 0 auto; padding: 24px 16px 48px; }
+    .card { background: #151f33; border: 1px solid #2b3852; border-radius: 16px; padding: 18px; margin: 14px 0; }
+    button { width: 100%; padding: 14px; border: 0; border-radius: 12px; background: #2f80ed; color: white; font-size: 16px; font-weight: 700; }
+    button:disabled { opacity: .6; }
+    .muted { color: #aab6ca; font-size: 14px; }
+    .alert { border-left: 4px solid #ff5c5c; }
+    time { color: #aab6ca; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <h1>Оповещения Ялты</h1>
+  <p class="muted">Сервис независимых уведомлений. Он не заменяет официальные сообщения экстренных служб.</p>
+  <div class="card">
+    <h2>Уведомления для города Ялта</h2>
+    <p id="status" class="muted">Чтобы получать сообщения, разрешите push-уведомления.</p>
+    <button id="subscribe">Разрешить уведомления</button>
+  </div>
+  <h2>Последние сообщения</h2>
+  <div id="alerts"><p class="muted">Загрузка...</p></div>
+  <script src="/app.js" defer></script>
+</body>
+</html>
