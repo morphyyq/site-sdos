@@ -3,30 +3,130 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0b1220">
+  <meta name="theme-color" content="#f5f5f7">
+  <meta name="description" content="Независимые уведомления для жителей Ялты">
   <link rel="manifest" href="/manifest.webmanifest">
-  <title>Оповещения Ялты</title>
+  <title>Ялта · Оповещения</title>
   <style>
-    :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #0b1220; color: #f5f7fb; }
-    body { max-width: 700px; margin: 0 auto; padding: 24px 16px 48px; }
-    .card { background: #151f33; border: 1px solid #2b3852; border-radius: 16px; padding: 18px; margin: 14px 0; }
-    button { width: 100%; padding: 14px; border: 0; border-radius: 12px; background: #2f80ed; color: white; font-size: 16px; font-weight: 700; }
-    button:disabled { opacity: .6; }
-    .muted { color: #aab6ca; font-size: 14px; }
-    .alert { border-left: 4px solid #ff5c5c; }
-    time { color: #aab6ca; font-size: 13px; }
+    :root {
+      color-scheme: light;
+      --bg: #f5f5f7;
+      --card: rgba(255,255,255,.82);
+      --ink: #1d1d1f;
+      --muted: #6e6e73;
+      --line: rgba(0,0,0,.08);
+      --blue: #0071e3;
+      --blue-soft: #e8f2ff;
+      --red: #ff3b30;
+      --green: #16a34a;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: radial-gradient(circle at 50% -15%, #fff 0, var(--bg) 46%); color: var(--ink); }
+    .shell { width: min(760px, calc(100% - 32px)); margin: 0 auto; padding: 22px 0 56px; }
+    .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 42px; }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: -.02em; }
+    .brand-mark { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 10px; background: #111; color: white; font-size: 16px; }
+    .live { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); font-size: 13px; }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 4px rgba(22,163,74,.1); }
+    .hero { text-align: center; padding: 14px 0 30px; }
+    .eyebrow { color: var(--blue); font-size: 15px; font-weight: 700; margin-bottom: 12px; }
+    h1 { font-size: clamp(42px, 10vw, 72px); letter-spacing: -.065em; line-height: .98; margin: 0; font-weight: 750; }
+    .hero p { max-width: 540px; margin: 20px auto 0; color: var(--muted); font-size: 18px; line-height: 1.45; letter-spacing: -.02em; }
+    .hero-note { display: inline-flex; align-items: center; gap: 8px; margin-top: 22px; padding: 9px 13px; border-radius: 999px; background: rgba(255,255,255,.85); color: var(--muted); font-size: 13px; border: 1px solid var(--line); }
+    .panel { background: var(--card); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); border: 1px solid rgba(255,255,255,.8); box-shadow: 0 16px 44px rgba(0,0,0,.07); border-radius: 28px; padding: 26px; margin: 18px 0; }
+    .panel h2 { margin: 0 0 8px; font-size: 24px; letter-spacing: -.04em; }
+    .panel p { color: var(--muted); line-height: 1.5; margin: 0; }
+    .subscribe-row { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+    .city { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 14px; margin-top: 16px; }
+    .city strong { color: var(--ink); }
+    button { border: 0; border-radius: 999px; background: var(--blue); color: white; padding: 14px 20px; font-size: 16px; font-weight: 650; cursor: pointer; box-shadow: 0 8px 18px rgba(0,113,227,.22); transition: transform .15s ease, opacity .15s ease; white-space: nowrap; }
+    button:hover { transform: translateY(-1px); }
+    button:disabled { opacity: .55; cursor: default; transform: none; }
+    .status { margin-top: 16px !important; font-size: 14px; }
+    .section-title { margin: 44px 2px 14px; font-size: 28px; letter-spacing: -.05em; }
+    .alert { position: relative; padding: 21px 22px 21px 25px; overflow: hidden; }
+    .alert::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 4px; background: var(--red); }
+    .alert-text { font-size: 17px; line-height: 1.4; font-weight: 650; letter-spacing: -.015em; }
+    .meta { color: var(--muted); font-size: 13px; margin-top: 10px; }
+    .empty { text-align: center; color: var(--muted); padding: 28px 0; }
+    details { border-top: 1px solid var(--line); padding: 18px 0; }
+    details:first-of-type { border-top: 0; }
+    summary { cursor: pointer; list-style: none; font-size: 17px; font-weight: 650; display: flex; justify-content: space-between; }
+    summary::-webkit-details-marker { display: none; }
+    summary::after { content: "+"; color: var(--muted); font-size: 22px; font-weight: 400; line-height: 1; }
+    details[open] summary::after { content: "−"; }
+    details p, details ol { color: var(--muted); line-height: 1.55; margin: 14px 0 0; padding-left: 22px; }
+    .footer { text-align: center; color: var(--muted); font-size: 13px; line-height: 1.5; margin: 34px auto 0; max-width: 560px; }
+    @media (max-width: 600px) {
+      .shell { width: min(100% - 22px, 760px); padding-top: 14px; }
+      .topbar { margin-bottom: 28px; }
+      .hero p { font-size: 16px; }
+      .panel { padding: 21px; border-radius: 23px; }
+      .subscribe-row { align-items: stretch; flex-direction: column; }
+      button { width: 100%; }
+      .live { font-size: 12px; }
+    }
   </style>
 </head>
 <body>
-  <h1>Оповещения Ялты</h1>
-  <p class="muted">Сервис независимых уведомлений. Он не заменяет официальные сообщения экстренных служб.</p>
-  <div class="card">
-    <h2>Уведомления для города Ялта</h2>
-    <p id="status" class="muted">Чтобы получать сообщения, разрешите push-уведомления.</p>
-    <button id="subscribe">Разрешить уведомления</button>
-  </div>
-  <h2>Последние сообщения</h2>
-  <div id="alerts"><p class="muted">Загрузка...</p></div>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">Я</span><span>Оповещения</span></div>
+      <div class="live"><span class="dot"></span>Ялта</div>
+    </header>
+
+    <section class="hero">
+      <div class="eyebrow">Спокойно. Вовремя. По делу.</div>
+      <h1>Ялта</h1>
+      <p>Независимые уведомления о важных сообщениях для жителей и гостей города.</p>
+      <div class="hero-note">◉ Уведомления только после разрешения пользователя</div>
+    </section>
+
+    <section class="panel">
+      <div class="subscribe-row">
+        <div>
+          <h2>Подключить уведомления</h2>
+          <p>Получайте новые сообщения прямо на телефон. Вы можете отключить их в любой момент.</p>
+          <div class="city">Город: <strong>Ялта</strong></div>
+        </div>
+        <button id="subscribe">Включить</button>
+      </div>
+      <p id="status" class="status">Уведомления пока не подключены.</p>
+    </section>
+
+    <h2 class="section-title">Последние сообщения</h2>
+    <section id="alerts"><div class="panel empty">Проверяем новые сообщения…</div></section>
+
+    <h2 class="section-title">Как подключить</h2>
+    <section class="panel">
+      <details open>
+        <summary>iPhone</summary>
+        <ol>
+          <li>Откройте этот сайт в Safari.</li>
+          <li>Нажмите «Поделиться».</li>
+          <li>Выберите «На экран Домой» и подтвердите.</li>
+          <li>Откройте сайт с новой иконки и нажмите «Включить».</li>
+          <li>Разрешите уведомления в системном окне.</li>
+        </ol>
+      </details>
+      <details>
+        <summary>Android</summary>
+        <ol>
+          <li>Откройте сайт в Google Chrome.</li>
+          <li>Нажмите кнопку «Включить».</li>
+          <li>Разрешите уведомления.</li>
+          <li>При желании выберите «Добавить на главный экран» в меню браузера.</li>
+        </ol>
+      </details>
+      <details>
+        <summary>Как отключить</summary>
+        <p>Отключить уведомления можно в настройках браузера или телефона. Сервис не требует регистрации и не просит точную геолокацию.</p>
+      </details>
+    </section>
+
+    <p class="footer">Сервис является независимым информационным каналом и не заменяет официальные сообщения экстренных служб. При угрозе жизни и здоровью ориентируйтесь на указания официальных органов.</p>
+  </main>
   <script src="/app.js" defer></script>
 </body>
 </html>
