@@ -42,14 +42,11 @@
       --shadow: 0 18px 50px rgba(0,0,0,.25);
     }
     * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
     body { margin: 0; background: radial-gradient(circle at 50% -15%, var(--solid-card) 0, var(--bg) 46%); color: var(--ink); transition: background .25s ease, color .25s ease; }
     .shell { width: min(760px, calc(100% - 32px)); margin: 0 auto; padding: 22px 0 56px; }
-    .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 42px; }
-    .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: -.02em; }
-    .brand-mark { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 10px; background: var(--ink); color: var(--bg); font-size: 16px; }
+    .topbar { display: flex; justify-content: flex-end; align-items: center; margin-bottom: 42px; min-height: 38px; }
     .top-actions { display: flex; align-items: center; gap: 12px; }
-    .live { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); font-size: 13px; }
-    .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 4px color-mix(in srgb, var(--green) 14%, transparent); }
     .theme-toggle { display: inline-grid; place-items: center; width: 38px; height: 38px; border: 1px solid var(--line); border-radius: 50%; background: var(--card); color: var(--ink); cursor: pointer; font-size: 17px; box-shadow: none; padding: 0; }
     .hero { text-align: center; padding: 14px 0 30px; }
     .eyebrow { color: var(--blue); font-size: 15px; font-weight: 700; margin-bottom: 12px; }
@@ -79,7 +76,16 @@
     summary::after { content: "+"; color: var(--muted); font-size: 22px; font-weight: 400; line-height: 1; }
     details[open] summary::after { content: "−"; }
     details p, details ol { color: var(--muted); line-height: 1.55; margin: 14px 0 0; padding-left: 22px; }
+    .reveal { opacity: 0; transform: translateY(24px) scale(.985); transition: opacity .72s cubic-bezier(.22, .61, .36, 1), transform .72s cubic-bezier(.22, .61, .36, 1); }
+    .reveal.visible { opacity: 1; transform: none; }
+    .reveal.delay-1 { transition-delay: .08s; }
+    .reveal.delay-2 { transition-delay: .16s; }
+    .reveal.delay-3 { transition-delay: .24s; }
     .footer { text-align: center; color: var(--muted); font-size: 13px; line-height: 1.5; margin: 34px auto 0; max-width: 600px; }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      .reveal, .reveal.visible { opacity: 1; transform: none; transition: none; }
+    }
     @media (max-width: 600px) {
       .shell { width: min(100% - 22px, 760px); padding-top: 14px; }
       .topbar { margin-bottom: 28px; }
@@ -87,28 +93,25 @@
       .panel { padding: 21px; border-radius: 23px; }
       .subscribe-row { align-items: stretch; flex-direction: column; }
       button:not(.theme-toggle) { width: 100%; }
-      .live { font-size: 12px; }
     }
   </style>
 </head>
 <body>
   <main class="shell">
     <header class="topbar">
-      <div class="brand"><span>Оповещения</span></div>
       <div class="top-actions">
-        <div class="live"><span class="dot"></span>Ялта</div>
         <button id="themeToggle" class="theme-toggle" type="button" aria-label="Переключить тему" title="Переключить тему">☾</button>
       </div>
     </header>
 
-    <section class="hero">
+    <section class="hero reveal">
       <div class="eyebrow">Спокойно. Вовремя. По делу.</div>
       <h1>Оповещение</h1>
       <p>Сервис уведомлений об угрозах, связанных с беспилотными летательными аппаратами, и других важных сообщениях для города.</p>
       <div class="hero-note">◉ Уведомления приходят только после разрешения пользователя</div>
     </section>
 
-    <section class="panel">
+    <section class="panel reveal delay-1">
       <div class="subscribe-row">
         <div>
           <h2>Подключить уведомления</h2>
@@ -120,11 +123,11 @@
       <p id="status" class="status">Уведомления пока не подключены.</p>
     </section>
 
-    <h2 class="section-title">Последние сообщения</h2>
-    <section id="alerts"><div class="panel empty">Проверяем новые сообщения…</div></section>
+    <h2 class="section-title reveal">Последние сообщения</h2>
+    <section id="alerts" class="reveal delay-1"><div class="panel empty">Проверяем новые сообщения…</div></section>
 
-    <h2 class="section-title">Как подключить</h2>
-    <section class="panel">
+    <h2 class="section-title reveal">Как подключить</h2>
+    <section class="panel reveal delay-1">
       <details open>
         <summary>iPhone</summary>
         <ol>
@@ -150,7 +153,7 @@
       </details>
     </section>
 
-    <p class="footer">Сервис является независимым информационным каналом и не заменяет официальные системы оповещения. При угрозе жизни и здоровью ориентируйтесь на указания официальных органов.</p>
+    <p class="footer reveal delay-2">Сервис является независимым информационным каналом и не заменяет официальные системы оповещения. При угрозе жизни и здоровью ориентируйтесь на указания официальных органов.</p>
   </main>
   <script src="/app.js" defer></script>
 </body>

@@ -31,15 +31,33 @@ function formatDate(value) {
   return new Date(value).toLocaleString('ru-RU', { dateStyle: 'medium', timeStyle: 'short' });
 }
 
+function observeReveals() {
+  const elements = document.querySelectorAll('.reveal:not(.reveal-observed)');
+  if (!('IntersectionObserver' in window)) {
+    elements.forEach(element => element.classList.add('visible'));
+    return;
+  }
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      entry.target.classList.toggle('visible', entry.isIntersecting);
+    });
+  }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' });
+  elements.forEach(element => {
+    element.classList.add('reveal-observed');
+    observer.observe(element);
+  });
+}
+
 async function loadAlerts() {
   const response = await fetch('/api/alerts');
   if (!response.ok) throw new Error('Не удалось загрузить сообщения');
   const alerts = await response.json();
   alertsEl.innerHTML = alerts.length ? alerts.map(alert => `
-    <article class="panel alert">
+    <article class="panel alert reveal">
       <div class="alert-text">${escapeHtml(alert.text)}</div>
       <div class="meta">${formatDate(alert.createdAt)} · Ялта</div>
     </article>`).join('') : '<div class="panel empty">Сообщений пока нет.</div>';
+  observeReveals();
 }
 
 async function subscribe() {
@@ -68,4 +86,5 @@ async function subscribe() {
 }
 
 button.addEventListener('click', subscribe);
+observeReveals();
 loadAlerts().catch(() => { alertsEl.innerHTML = '<div class="panel empty">Не удалось загрузить сообщения.</div>'; });
