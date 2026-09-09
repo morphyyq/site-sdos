@@ -1,10 +1,11 @@
 {
-  "name": "Ялта · Оповещения",
+  "name": "Ялта · БПЛА и оповещения",
   "short_name": "Ялта",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f5f5f7",
   "theme_color": "#f5f5f7",
   "lang": "ru",
+  "description": "Оповещения об угрозах, связанных с БПЛА, и другие важные сообщения для Ялты",
   "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
 }

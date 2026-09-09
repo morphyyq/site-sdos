@@ -128,6 +128,16 @@ async function handleTelegramUpdate(update) {
   }
   const originalText = getMessageText(message);
   if (!originalText) return;
+
+  if (/^\/clear(?:@\w+)?\s*$/i.test(originalText)) {
+    const result = await db.collection('alerts').deleteMany({ city: 'Ялта' });
+    await telegram('sendMessage', {
+      chat_id: message.chat.id,
+      text: `История уведомлений Ялты очищена. Удалено сообщений: ${result.deletedCount}.`
+    });
+    return;
+  }
+
   const isCommand = /^\/alert\b/i.test(originalText);
   if (!isCommand && !TRIGGER_RE.test(originalText)) {
     await telegram('sendMessage', { chat_id: message.chat.id, text: 'Сообщение не отправлено: не найден признак предупреждения. Используйте /alert перед текстом или слова «БПЛА», «дрон», «беспилотник».' });

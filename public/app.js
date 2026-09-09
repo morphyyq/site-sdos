@@ -1,6 +1,22 @@
 const statusEl = document.querySelector('#status');
 const button = document.querySelector('#subscribe');
 const alertsEl = document.querySelector('#alerts');
+const themeToggle = document.querySelector('#themeToggle');
+
+function applyTheme(theme) {
+  const dark = theme === 'dark';
+  document.documentElement.classList.toggle('dark', dark);
+  themeToggle.textContent = dark ? '☀' : '☾';
+  themeToggle.title = dark ? 'Включить светлую тему' : 'Включить тёмную тему';
+  themeToggle.setAttribute('aria-label', themeToggle.title);
+}
+const savedTheme = localStorage.getItem('yalta-theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+applyTheme(savedTheme);
+themeToggle.addEventListener('click', () => {
+  const next = document.documentElement.classList.contains('dark') ? 'light' : 'dark';
+  localStorage.setItem('yalta-theme', next);
+  applyTheme(next);
+});
 
 function b64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
